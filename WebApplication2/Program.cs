@@ -1,26 +1,25 @@
 using Microsoft.EntityFrameworkCore;
 using WebApplication2.Data;
+using WebApplication2.Services;
+using Npgsql;
+using WebApplication2.Models;
+
+static void MapEnumTypes()
+{
+    NpgsqlConnection.GlobalTypeMapper.MapEnum<TodoStatus>("todo_status");
+    NpgsqlConnection.GlobalTypeMapper.MapEnum<TodoPriority>("todo_priority");
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddDbContext<TodoContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddDbContext<TodoContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAllOrigins",
-        builder =>
-        {
-            builder.AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader();
-        });
-});
+builder.Services.AddScoped<TodoService>();
 
 var app = builder.Build();
 
@@ -31,12 +30,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-
-app.UseCors("AllowAllOrigins");
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();
