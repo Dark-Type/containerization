@@ -4,12 +4,6 @@ using WebApplication2.Services;
 using Npgsql;
 using WebApplication2.Models;
 
-static void MapEnumTypes()
-{
-    NpgsqlConnection.GlobalTypeMapper.MapEnum<TodoStatus>("todo_status");
-    NpgsqlConnection.GlobalTypeMapper.MapEnum<TodoPriority>("todo_priority");
-}
-
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
@@ -19,7 +13,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<TodoContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped<TodoService>();
+builder.Services.AddScoped<ITodoService, TodoService>();
 
 var app = builder.Build();
 

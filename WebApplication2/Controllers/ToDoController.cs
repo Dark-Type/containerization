@@ -12,9 +12,9 @@ namespace WebApplication2.Controllers
     public class TodoController : ControllerBase
     {
         private readonly TodoContext _context;
-        private readonly TodoService _todoService;
+        private readonly ITodoService _todoService;
 
-        public TodoController(TodoContext context, TodoService todoService)
+        public TodoController(TodoContext context, ITodoService todoService)
         {
             _context = context;
             _todoService = todoService;
@@ -75,11 +75,12 @@ namespace WebApplication2.Controllers
 
             _todoService.UpdateTodoStatus(todo);
 
-            Console.WriteLine($"Attempting to save todo: Title={todo.Title}, Status={todo.Status}, Priority={todo.Priority}");
-    
+            Console.WriteLine(
+                $"Attempting to save todo: Title={todo.Title}, Status={todo.Status}, Priority={todo.Priority}");
+
             _context.Todos.Add(todo);
-    
-            try 
+
+            try
             {
                 await _context.SaveChangesAsync();
             }
@@ -90,9 +91,9 @@ namespace WebApplication2.Controllers
                 {
                     errorMessage += $"\nInner exception: {ex.InnerException.Message}";
                 }
-        
+
                 Console.WriteLine(errorMessage);
-        
+
                 return StatusCode(500, errorMessage);
             }
 
@@ -118,18 +119,24 @@ namespace WebApplication2.Controllers
         {
             if (id != todo.Id)
             {
-                return BadRequest();
+                return BadRequest("ID mismatch");
             }
+
 
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
+
+            if (string.IsNullOrEmpty(todo.Title) || todo.Title.Length < 4)
+            {
+                ModelState.AddModelError("Title", "Title must be at least 4 characters long");
+                return BadRequest(ModelState);
+            }
+
             _todoService.ProcessTodoMacros(todo);
-
             todo.ModifiedAt = DateTime.UtcNow.Date;
-
             _todoService.UpdateTodoStatus(todo);
 
             _context.Entry(todo).State = EntityState.Modified;

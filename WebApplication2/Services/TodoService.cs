@@ -5,7 +5,7 @@ using WebApplication2.Models;
 
 namespace WebApplication2.Services
 {
-    public class TodoService
+    public class TodoService : ITodoService
     {
         public Todo ProcessTodoMacros(Todo todo)
         {
@@ -31,10 +31,18 @@ namespace WebApplication2.Services
 
         public void MarkAsCompleted(Todo todo)
         {
-            todo.Status = todo.Deadline.HasValue && DateTime.UtcNow > todo.Deadline.Value
-                ? TodoStatus.Late
-                : TodoStatus.Completed;
-            
+            bool isOverdue = todo.Deadline.HasValue &&
+                             todo.Deadline.Value.Date < DateTime.UtcNow.Date;
+
+            if (isOverdue)
+            {
+                todo.Status = TodoStatus.Late;
+            }
+            else
+            {
+                todo.Status = TodoStatus.Completed;
+            }
+
             todo.ModifiedAt = DateTime.UtcNow;
         }
 
@@ -43,7 +51,7 @@ namespace WebApplication2.Services
             todo.Status = todo.Deadline.HasValue && DateTime.UtcNow > todo.Deadline.Value
                 ? TodoStatus.Overdue
                 : TodoStatus.Active;
-            
+
             todo.ModifiedAt = DateTime.UtcNow;
         }
 
@@ -51,7 +59,7 @@ namespace WebApplication2.Services
         {
             string title = todo.Title;
             var priorityMatch = Regex.Match(title, @"!([1-4])");
-            
+
             if (priorityMatch.Success)
             {
                 string priority = priorityMatch.Groups[1].Value;
@@ -63,7 +71,7 @@ namespace WebApplication2.Services
                     "4" => TodoPriority.Low,
                     _ => todo.Priority
                 };
-                
+
                 todo.Title = Regex.Replace(title, @"!\d\s*", "").Trim();
             }
         }
@@ -72,19 +80,20 @@ namespace WebApplication2.Services
         {
             string title = todo.Title;
             var deadlineMatch = Regex.Match(title, @"!before\s+(\d{2}[-\.]\d{2}[-\.]\d{4})");
-            
+
             if (deadlineMatch.Success)
             {
                 string dateStr = deadlineMatch.Groups[1].Value;
                 dateStr = dateStr.Replace('-', '.');
-                
-                if (DateTime.TryParseExact(dateStr, "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime deadline))
+
+                if (DateTime.TryParseExact(dateStr, "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None,
+                        out DateTime deadline))
                 {
                     if (!todo.Deadline.HasValue)
                     {
                         todo.Deadline = deadline;
                     }
-                    
+
                     todo.Title = Regex.Replace(title, @"!before\s+\d{2}[-\.]\d{2}[-\.]\d{4}\s*", "").Trim();
                 }
             }
