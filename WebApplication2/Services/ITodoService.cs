@@ -8,5 +8,6 @@ namespace WebApplication2.Services
         void UpdateTodoStatus(Todo todo);
         void MarkAsCompleted(Todo todo);
         void MarkAsIncomplete(Todo todo);
+        void UpdateTodoStatus(Todo todo, TodoStatus previousStatus = TodoStatus.Active, DateTime? previousDeadline = null);
     }
 }

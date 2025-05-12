@@ -424,3 +424,4 @@
 /Users/nikitaskazutin/RiderProjects/WebApplication2/WebApplication2.Tests/obj/Debug/net8.0/WebApplication2.Tests.pdb
 /Users/nikitaskazutin/RiderProjects/WebApplication2/WebApplication2.Tests/obj/Debug/net8.0/WebApplication2.Tests.genruntimeconfig.cache
 /Users/nikitaskazutin/RiderProjects/WebApplication2/WebApplication2.Tests/obj/Debug/net8.0/ref/WebApplication2.Tests.dll
+/Users/nikitaskazutin/RiderProjects/WebApplication2/WebApplication2.Tests/bin/Debug/net8.0/WebApplication2.xml

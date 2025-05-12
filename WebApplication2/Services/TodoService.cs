@@ -45,7 +45,34 @@ namespace WebApplication2.Services
 
             todo.ModifiedAt = DateTime.UtcNow;
         }
+        public void UpdateTodoStatus(Todo todo, TodoStatus previousStatus = TodoStatus.Active, DateTime? previousDeadline = null)
+        {
+            if (previousStatus == TodoStatus.Late && todo.Status == TodoStatus.Late)
+            {
+                if (todo.Deadline.HasValue && todo.Deadline.Value.Date >= DateTime.UtcNow.Date)
+                {
+                    todo.Status = TodoStatus.Completed;
+                    return;
+                }
+            }
 
+            if (todo.Status == TodoStatus.Active || todo.Status == TodoStatus.Overdue)
+            {
+                if (todo.Deadline.HasValue && todo.Deadline.Value.Date < DateTime.UtcNow.Date)
+                {
+                    todo.Status = TodoStatus.Overdue;
+                }
+                else
+                {
+                    todo.Status = TodoStatus.Active;
+                }
+            }
+            else if (todo.Status == TodoStatus.Completed && todo.Deadline.HasValue && 
+                     todo.Deadline.Value.Date < DateTime.UtcNow.Date)
+            {
+                todo.Status = TodoStatus.Late;
+            }
+        }
         public void MarkAsIncomplete(Todo todo)
         {
             todo.Status = todo.Deadline.HasValue && DateTime.UtcNow > todo.Deadline.Value

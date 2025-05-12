@@ -503,3 +503,5 @@
 /Users/nikitaskazutin/RiderProjects/WebApplication2/WebApplication2/bin/Debug/net8.0/zh-Hant/Microsoft.TestPlatform.CrossPlatEngine.resources.dll
 /Users/nikitaskazutin/RiderProjects/WebApplication2/WebApplication2/bin/Debug/net8.0/zh-Hant/Microsoft.VisualStudio.TestPlatform.Common.resources.dll
 /Users/nikitaskazutin/RiderProjects/WebApplication2/WebApplication2/obj/Debug/net8.0/MvcTestingAppManifest.json
+/Users/nikitaskazutin/RiderProjects/WebApplication2/WebApplication2/bin/Debug/net8.0/WebApplication2.xml
+/Users/nikitaskazutin/RiderProjects/WebApplication2/WebApplication2/obj/Debug/net8.0/WebApplication2.xml

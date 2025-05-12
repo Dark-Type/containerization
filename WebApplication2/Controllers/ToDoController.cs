@@ -122,12 +122,10 @@ namespace WebApplication2.Controllers
                 return BadRequest("ID mismatch");
             }
 
-
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-
 
             if (string.IsNullOrEmpty(todo.Title) || todo.Title.Length < 4)
             {
@@ -135,12 +133,23 @@ namespace WebApplication2.Controllers
                 return BadRequest(ModelState);
             }
 
-            _todoService.ProcessTodoMacros(todo);
-            todo.ModifiedAt = DateTime.UtcNow.Date;
-            _todoService.UpdateTodoStatus(todo);
+            var currentTodo = await _context.Todos.FindAsync(id);
+            if (currentTodo == null)
+            {
+                return NotFound();
+            }
 
-            _context.Entry(todo).State = EntityState.Modified;
-            _context.Entry(todo).Property(x => x.CreatedAt).IsModified = false;
+            var previousStatus = currentTodo.Status;
+            var previousDeadline = currentTodo.Deadline;
+
+            _todoService.ProcessTodoMacros(todo);
+            todo.ModifiedAt = DateTime.UtcNow; 
+    
+         
+            _todoService.UpdateTodoStatus(todo, previousStatus, previousDeadline);
+
+            _context.Entry(currentTodo).CurrentValues.SetValues(todo);
+            _context.Entry(currentTodo).Property(x => x.CreatedAt).IsModified = false;
 
             try
             {
@@ -167,10 +176,20 @@ namespace WebApplication2.Controllers
             {
                 return NotFound();
             }
+            
+            if (todo.Status == TodoStatus.Completed || todo.Status == TodoStatus.Late)
+            {
+                return BadRequest(new { error = "Cannot mark as completed. The todo is already completed or late." });
+            }
 
             _todoService.MarkAsCompleted(todo);
+
+            _context.Entry(todo).Property(x => x.Status).IsModified = true;
+            _context.Entry(todo).Property(x => x.ModifiedAt).IsModified = true;
+
             await _context.SaveChangesAsync();
-            return NoContent();
+
+            return Ok(todo);
         }
 
         [HttpPut("incomplete/{id}")]
@@ -181,10 +200,15 @@ namespace WebApplication2.Controllers
             {
                 return NotFound();
             }
-
+    
             _todoService.MarkAsIncomplete(todo);
+
+            _context.Entry(todo).Property(x => x.Status).IsModified = true;
+            _context.Entry(todo).Property(x => x.ModifiedAt).IsModified = true;
+
             await _context.SaveChangesAsync();
-            return NoContent();
+
+            return Ok(todo);
         }
 
         [HttpPost("upload")]
