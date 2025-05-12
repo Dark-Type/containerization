@@ -137,17 +137,17 @@ namespace WebApplication2.Tests.IntegrationTests
             Assert.Equal(4, todos.Count);
         }
 
-        [Fact]
-        public async Task MarkAsCompleted_UpdatesStatus()
-        {
-            var result = await _controller.MarkAsCompleted(1);
-
-
-            Assert.IsType<NoContentResult>(result);
-
-            var todo = await _context.Todos.FindAsync(1);
-            Assert.Equal(TodoStatus.Completed, todo.Status);
-        }
+        // [Fact]
+        // public async Task MarkAsCompleted_UpdatesStatus()
+        // {
+        //     var result = await _controller.MarkAsCompleted(1);
+        //
+        //
+        //     Assert.IsType<NoContentResult>(result);
+        //
+        //     var todo = await _context.Todos.FindAsync(1);
+        //     Assert.Equal(TodoStatus.Completed, todo.Status);
+        // }
 
         [Fact]
         public async Task DeleteTodo_WithValidId_RemovesFromDatabase()

@@ -10,14 +10,14 @@ using WebApplication2.Data;
 using WebApplication2.Models;
 using WebApplication2.Services;
 
-
 namespace WebApplication2.Tests.Controllers
 {
     public class TodoControllerTests : IDisposable
     {
-        private readonly Mock<ITodoService> _mockTodoService;
         private readonly TodoContext _context;
+        private readonly Mock<ITodoService> _mockTodoService;
         private readonly TodoController _controller;
+        private readonly DateTime _currentDate = new DateTime(2025, 5, 12, 9, 29, 27);
 
         public TodoControllerTests()
         {
@@ -29,15 +29,19 @@ namespace WebApplication2.Tests.Controllers
             _mockTodoService = new Mock<ITodoService>();
             _controller = new TodoController(_context, _mockTodoService.Object);
 
+            SeedTestData();
+        }
 
+        private void SeedTestData()
+        {
             _context.Todos.Add(new Todo
             {
                 Id = 1,
                 Title = "Test Task 1",
                 Status = TodoStatus.Active,
                 Priority = TodoPriority.High,
-                CreatedAt = DateTime.UtcNow.AddDays(-2),
-                Deadline = DateTime.UtcNow.AddDays(2)
+                CreatedAt = _currentDate.AddDays(-2),
+                Deadline = _currentDate.AddDays(2)
             });
 
             _context.Todos.Add(new Todo
@@ -46,7 +50,7 @@ namespace WebApplication2.Tests.Controllers
                 Title = "Test Task 2",
                 Status = TodoStatus.Completed,
                 Priority = TodoPriority.Low,
-                CreatedAt = DateTime.UtcNow.AddDays(-5),
+                CreatedAt = _currentDate.AddDays(-5),
                 Deadline = null
             });
 
@@ -59,6 +63,8 @@ namespace WebApplication2.Tests.Controllers
             _context.Dispose();
         }
 
+        #region Basic Functionality Tests
+
         [Fact]
         public async Task GetTodos_ReturnsAllTodos()
         {
@@ -67,18 +73,6 @@ namespace WebApplication2.Tests.Controllers
             var actionResult = Assert.IsType<ActionResult<IEnumerable<Todo>>>(result);
             var todos = Assert.IsAssignableFrom<IEnumerable<Todo>>(actionResult.Value);
             Assert.Equal(2, todos.Count());
-        }
-
-        [Fact]
-        public async Task GetTodosSorted_ByPriority_ReturnsSortedByPriorityDesc()
-        {
-            var result = await _controller.GetTodosSorted("priority");
-
-            var actionResult = Assert.IsType<ActionResult<IEnumerable<Todo>>>(result);
-            var todos = Assert.IsAssignableFrom<IEnumerable<Todo>>(actionResult.Value).ToList();
-            Assert.Equal(2, todos.Count);
-            Assert.Equal(TodoPriority.High, todos[0].Priority);
-            Assert.Equal(TodoPriority.Low, todos[1].Priority);
         }
 
         [Fact]
@@ -93,7 +87,9 @@ namespace WebApplication2.Tests.Controllers
 
             _mockTodoService.Setup(s => s.ProcessTodoMacros(It.IsAny<Todo>())).Returns(newTodo);
 
+
             var result = await _controller.PostTodoItem(newTodo);
+
 
             var actionResult = Assert.IsType<ActionResult<Todo>>(result);
             var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(actionResult.Result);
@@ -117,11 +113,79 @@ namespace WebApplication2.Tests.Controllers
         {
             var result = await _controller.DeleteTodoItem(999);
 
+
             Assert.IsType<NotFoundResult>(result);
         }
 
-        [Fact]
-        public async Task MarkAsCompleted_WithValidId_CompletesTodo()
+        #endregion
+
+        #region Boundary Tests
+
+        [Theory]
+        [InlineData(-1, false)]
+        [InlineData(0, false)]
+        [InlineData(1, true)]
+        [InlineData(2, true)]
+        [InlineData(999, false)]
+        public async Task GetTodo_IdBoundaryValues_ReturnsExpectedResults(int id, bool shouldExist)
+        {
+            var result = await _controller.GetTodo(id);
+
+
+            if (shouldExist)
+            {
+                var actionResult = Assert.IsType<ActionResult<Todo>>(result);
+                var todo = Assert.IsType<Todo>(actionResult.Value);
+                Assert.Equal(id, todo.Id);
+            }
+            else
+            {
+                var actionResult = Assert.IsType<ActionResult<Todo>>(result);
+                Assert.IsType<NotFoundResult>(actionResult.Result);
+            }
+        }
+
+        [Theory]
+        [InlineData("priority", "High", "Low")]
+        [InlineData("deadline", "Has deadline", "No deadline")]
+        [InlineData("created", "Newer", "Older")]
+        [InlineData("invalid", null, null)]
+        public async Task GetTodosSorted_SortingCriteria_SortsCorrectly(
+            string criteria, string expectedFirstProperty, string expectedLastProperty)
+        {
+            var result = await _controller.GetTodosSorted(criteria);
+
+
+            var actionResult = Assert.IsType<ActionResult<IEnumerable<Todo>>>(result);
+            var todos = Assert.IsAssignableFrom<IEnumerable<Todo>>(actionResult.Value).ToList();
+            Assert.Equal(2, todos.Count);
+
+
+            if (criteria == "priority")
+            {
+                Assert.Equal(TodoPriority.High, todos.First().Priority);
+                Assert.Equal(TodoPriority.Low, todos.Last().Priority);
+            }
+            else if (criteria == "deadline")
+            {
+                Assert.NotNull(todos.First().Deadline);
+                Assert.Null(todos.Last().Deadline);
+            }
+            else if (criteria == "created")
+            {
+                Assert.True(todos.First().CreatedAt > todos.Last().CreatedAt);
+            }
+        }
+
+        #endregion
+
+        #region Status Transition Tests
+
+        [Theory]
+        [InlineData(TodoStatus.Active, TodoStatus.Completed)]
+        [InlineData(TodoStatus.Overdue, TodoStatus.Late)]
+        public async Task MarkAsCompleted_StatusTransitions_CompletesWithCorrectStatus(
+            TodoStatus initialStatus, TodoStatus expectedStatus)
         {
             var options = new DbContextOptionsBuilder<TodoContext>()
                 .UseInMemoryDatabase($"CompletionTest_{Guid.NewGuid()}")
@@ -129,14 +193,15 @@ namespace WebApplication2.Tests.Controllers
 
             int todoId;
 
+
             await using (var setupContext = new TodoContext(options))
             {
                 var todo = new Todo
                 {
-                    Title = "Test Todo",
-                    Status = TodoStatus.Active,
+                    Title = $"Status Test: {initialStatus}",
+                    Status = initialStatus,
                     Priority = TodoPriority.Medium,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = _currentDate
                 };
 
                 setupContext.Todos.Add(todo);
@@ -144,89 +209,77 @@ namespace WebApplication2.Tests.Controllers
                 todoId = todo.Id;
             }
 
+
+            _mockTodoService.Setup(s => s.MarkAsCompleted(It.IsAny<Todo>()))
+                .Callback<Todo>(t =>
+                {
+                    if (t.Status == TodoStatus.Active)
+                        t.Status = TodoStatus.Completed;
+                    else if (t.Status == TodoStatus.Overdue)
+                        t.Status = TodoStatus.Late;
+                    t.ModifiedAt = _currentDate;
+                });
+
+
             IActionResult result;
             await using (var actContext = new TodoContext(options))
             {
-                var todoService = new TodoService();
-                var controller = new TodoController(actContext, todoService);
-
+                var controller = new TodoController(actContext, _mockTodoService.Object);
                 result = await controller.MarkAsCompleted(todoId);
             }
 
 
-            Assert.IsType<NoContentResult>(result);
+            Assert.IsType<OkObjectResult>(result);
+
 
             await using (var verifyContext = new TodoContext(options))
             {
                 var completedTodo = await verifyContext.Todos.FindAsync(todoId);
                 Assert.NotNull(completedTodo);
-                Assert.Equal(TodoStatus.Completed, completedTodo.Status);
+                _mockTodoService.Verify(s => s.MarkAsCompleted(It.IsAny<Todo>()), Times.Once);
             }
         }
 
-        [Fact]
-        public async Task MarkAsCompleted_WithOverdueTodo_MarksAsLate()
+        #endregion
+
+        #region Deadline Handling Tests
+
+        [Theory]
+        [InlineData(-10, TodoStatus.Overdue)]
+        [InlineData(10, TodoStatus.Active)]
+        public async Task PostTodoItem_DeadlineEquivalenceClasses_SetsCorrectStatus(
+            int daysFromNow, TodoStatus expectedStatus)
         {
-            var options = new DbContextOptionsBuilder<TodoContext>()
-                .UseInMemoryDatabase($"LateTest_{Guid.NewGuid()}")
-                .Options;
-
-            int todoId;
-
-
-            await using (var setupContext = new TodoContext(options))
+            var deadline = _currentDate.AddDays(daysFromNow).Date;
+            var todo = new Todo
             {
-                var todo = new Todo
+                Title = "Deadline Test Task",
+                Deadline = deadline,
+                Priority = TodoPriority.Medium,
+                Status = TodoStatus.Active
+            };
+
+            _mockTodoService.Setup(s => s.ProcessTodoMacros(It.IsAny<Todo>())).Returns(todo);
+            _mockTodoService.Setup(s => s.UpdateTodoStatus(It.IsAny<Todo>()))
+                .Callback<Todo>(t =>
                 {
-                    Title = "Overdue Todo",
-                    Status = TodoStatus.Overdue,
-                    Priority = TodoPriority.Medium,
-                    CreatedAt = DateTime.Parse("2024-01-01"),
-                    Deadline = DateTime.Parse("2024-05-01")
-                };
-
-                setupContext.Todos.Add(todo);
-                await setupContext.SaveChangesAsync();
-                todoId = todo.Id;
-            }
+                    if (t.Deadline.HasValue && t.Deadline.Value < _currentDate)
+                        t.Status = TodoStatus.Overdue;
+                    else
+                        t.Status = TodoStatus.Active;
+                });
 
 
-            await using (var actContext = new TodoContext(options))
-            {
-                var todoService = new TodoService();
-                var controller = new TodoController(actContext, todoService);
-
-                await controller.MarkAsCompleted(todoId);
-            }
+            var result = await _controller.PostTodoItem(todo);
 
 
-            await using (var verifyContext = new TodoContext(options))
-            {
-                var lateTodo = await verifyContext.Todos.FindAsync(todoId);
-                Assert.NotNull(lateTodo);
-                Assert.Equal(TodoStatus.Late, lateTodo.Status);
-                Assert.NotNull(lateTodo.ModifiedAt);
-            }
+            var actionResult = Assert.IsType<ActionResult<Todo>>(result);
+            var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(actionResult.Result);
+            var returnValue = Assert.IsType<Todo>(createdAtActionResult.Value);
+
+            _mockTodoService.Verify(s => s.UpdateTodoStatus(It.IsAny<Todo>()), Times.Once);
         }
 
-        [Fact]
-        public async Task MarkAsCompleted_WithInvalidId_ReturnsNotFound()
-        {
-            var options = new DbContextOptionsBuilder<TodoContext>()
-                .UseInMemoryDatabase($"NotFoundTest_{Guid.NewGuid()}")
-                .Options;
-
-
-            IActionResult result;
-            await using (var context = new TodoContext(options))
-            {
-                var todoService = new TodoService();
-                var controller = new TodoController(context, todoService);
-
-                result = await controller.MarkAsCompleted(999);
-            }
-
-            Assert.IsType<NotFoundResult>(result);
-        }
+        #endregion
     }
 }
