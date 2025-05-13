@@ -68,6 +68,24 @@ namespace WebApplication2.Controllers
                 return BadRequest(ModelState);
             }
 
+            if (string.IsNullOrEmpty(todo.Title) || todo.Title.Length < 4)
+            {
+                ModelState.AddModelError("Title", "Title must be at least 4 characters long");
+                return BadRequest(ModelState);
+            }
+
+            if (todo.Title.Length > 200)
+            {
+                ModelState.AddModelError("Title", "Title cannot exceed 200 characters");
+                return BadRequest(ModelState);
+            }
+
+            if (todo.Description != null && todo.Description.Length > 500)
+            {
+                ModelState.AddModelError("Description", "Description cannot exceed 500 characters");
+                return BadRequest(ModelState);
+            }
+
             _todoService.ProcessTodoMacros(todo);
 
             todo.CreatedAt = DateTime.UtcNow.Date;
@@ -133,6 +151,18 @@ namespace WebApplication2.Controllers
                 return BadRequest(ModelState);
             }
 
+            if (todo.Title.Length > 200)
+            {
+                ModelState.AddModelError("Title", "Title cannot exceed 200 characters");
+                return BadRequest(ModelState);
+            }
+
+            if (todo.Description != null && todo.Description.Length > 500)
+            {
+                ModelState.AddModelError("Description", "Description cannot exceed 500 characters");
+                return BadRequest(ModelState);
+            }
+
             var currentTodo = await _context.Todos.FindAsync(id);
             if (currentTodo == null)
             {
@@ -143,9 +173,9 @@ namespace WebApplication2.Controllers
             var previousDeadline = currentTodo.Deadline;
 
             _todoService.ProcessTodoMacros(todo);
-            todo.ModifiedAt = DateTime.UtcNow; 
-    
-         
+            todo.ModifiedAt = DateTime.UtcNow;
+
+
             _todoService.UpdateTodoStatus(todo, previousStatus, previousDeadline);
 
             _context.Entry(currentTodo).CurrentValues.SetValues(todo);
@@ -176,7 +206,7 @@ namespace WebApplication2.Controllers
             {
                 return NotFound();
             }
-            
+
             if (todo.Status == TodoStatus.Completed || todo.Status == TodoStatus.Late)
             {
                 return BadRequest(new { error = "Cannot mark as completed. The todo is already completed or late." });
@@ -200,7 +230,7 @@ namespace WebApplication2.Controllers
             {
                 return NotFound();
             }
-    
+
             _todoService.MarkAsIncomplete(todo);
 
             _context.Entry(todo).Property(x => x.Status).IsModified = true;
@@ -216,6 +246,21 @@ namespace WebApplication2.Controllers
         {
             foreach (var todo in todos)
             {
+                if (string.IsNullOrEmpty(todo.Title) || todo.Title.Length < 4)
+                {
+                    return BadRequest(new { error = "Title must be at least 4 characters long" });
+                }
+
+                if (todo.Title.Length > 200)
+                {
+                    return BadRequest(new { error = "Title cannot exceed 200 characters" });
+                }
+
+                if (todo.Description != null && todo.Description.Length > 500)
+                {
+                    return BadRequest(new { error = "Description cannot exceed 500 characters" });
+                }
+
                 _todoService.ProcessTodoMacros(todo);
                 _todoService.UpdateTodoStatus(todo);
 

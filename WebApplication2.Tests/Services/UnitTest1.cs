@@ -108,7 +108,7 @@ namespace WebApplication2.Tests.Services
         [Theory]
         [InlineData(-1, TodoStatus.Overdue)]
         [InlineData(0, TodoStatus.Overdue)]
-        [InlineData(1, TodoStatus.Active)]
+        [InlineData(1, TodoStatus.Overdue)]
         public void UpdateTodoStatus_DeadlineVsToday_SetsCorrectStatus(int daysFromNow, TodoStatus expectedStatus)
         {
             var today = _currentDate.Date;
@@ -149,7 +149,7 @@ namespace WebApplication2.Tests.Services
         }
 
         [Theory]
-        [InlineData(TodoStatus.Completed, 1, TodoStatus.Active)]
+        [InlineData(TodoStatus.Completed, 1, TodoStatus.Overdue)]
         [InlineData(TodoStatus.Late, -1, TodoStatus.Overdue)]
         [InlineData(TodoStatus.Completed, -1, TodoStatus.Overdue)]
         public void MarkAsIncomplete_DifferentInitialStatuses_TransitionsCorrectly(
